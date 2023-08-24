@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>react講義用課題①じゃんけん</title>
+
+  <style>
+    .result_container {
+      display: flex;
+    }
+  </style>
+
+
+
+</head>
+
+<body>
+  <header>
+    <h3>react講義用課題じゃんけん</h3>
+  </header>
+
+  <main>
+    <div>
+      <button id="gu_btn">グー</button>
+      <button id="cho_btn">チョキ</button>
+      <button id="par_btn">パー</button>
+    </div>
+
+    <div class="result_container">
+      <div> PCの手は何？：</div>
+      <div id="com_hand"></div>
+    </div>
+
+    <div class="result_container">
+      <div>勝ち負けは？：</div>
+      <div id="result"></div>
+    </div>
+
+    <div class="result_container">
+      <div>firebaseから読み込み→勝敗数＆勝率：</div>
+      <div id="winlose"></div>
+    </div>
+
+    <div class="result_container">
+      <div>ChatGPTから生成→博多弁によるAIアドバイス：</div>
+      <div id="advice"></div>
+    </div>
+
+  </main>
+  <script src="https://unpkg.com/axios@1.1.2/dist/axios.min.js"></script>
+  <script type="module">
+
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-app.js";
+
+    // firebase firestoreとやり取りをする設定
+    import {
+      getFirestore,
+      collection,
+      doc,
+      updateDoc,
+      increment,
+      getDoc,
+    } from "https://www.gstatic.com/firebasejs/10.2.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBx71S0b41k1M1UrsiIXb4zRss_Sbth8eM",
+      authDomain: "janken-react.firebaseapp.com",
+      projectId: "janken-react",
+      storageBucket: "janken-react.appspot.com",
+      messagingSenderId: "402635589118",
+      appId: "1:402635589118:web:a85b9b5fed05cd6c832caf"
+    };
+
+    const chatGptApiKey = "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";
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    //勝敗の定義
+    let win = 0;
+    let lose = 0;
+    let equal = 0;
+    let historyMessage = "";
+
+    // グーの挙動
+    document.getElementById("gu_btn").addEventListener("click", function () {
+      const min = 0;
+      const max = 2;
+      const randomNumber = Math.floor(Math.random() * (max - min + 1) + min);
+      // console.log(randomNumber);
+
+      if (randomNumber === 0) {
+        equal++;
+        document.getElementById("com_hand").textContent = "グー";
+        document.getElementById("result").textContent = "あいこ";
+        updateDoc(doc(db, "janken", "gu"), {
+          equal: increment(1)
+        });
+
+      } else if (randomNumber === 1) {
+        win++;
+        document.getElementById("com_hand").textContent = "チョキ";
+        document.getElementById("result").textContent = "かち";
+        updateDoc(doc(db, "janken", "gu"), {
+          win: increment(1)
+        });
+
+      } else if (randomNumber === 2) {
+        lose++;
+        document.getElementById("com_hand").textContent = "パー";
+        document.getElementById("result").textContent = "まけ";
+        updateDoc(doc(db, "janken", "gu"), {
+          lose: increment(1)
+        });
+      }
+      updateHistory();
+
+    });
+
+    // チョキの挙動
+    document.getElementById("cho_btn").addEventListener("click", function () {
+      const min = 0;
+      const max = 2;
+      const randomNumber = Math.floor(Math.random() * (max - min + 1) + min);
+      // console.log(randomNumber);
+
+      if (randomNumber === 0) {
+        lose++;
+        document.getElementById("com_hand").textContent = "グー";
+        document.getElementById("result").textContent = "まけ";
+        updateDoc(doc(db, "janken", "cho"), {
+          lose: increment(1)
+        });
+
+      } else if (randomNumber === 1) {
+        equal++;
+        document.getElementById("com_hand").textContent = "チョキ";
+        document.getElementById("result").textContent = "あいこ";
+        updateDoc(doc(db, "janken", "cho"), {
+          equal: increment(1)
+        });
+      } else if (randomNumber === 2) {
+        win++;
+        document.getElementById("com_hand").textContent = "パー";
+        document.getElementById("result").textContent = "かち";
+        updateDoc(doc(db, "janken", "cho"), {
+          win: increment(1)
+        });
+      }
+      updateHistory();
+
+    });
+
+    // パーの挙動
+    document.getElementById("par_btn").addEventListener("click", function () {
+      const min = 0;
+      const max = 2;
+      const randomNumber = Math.floor(Math.random() * (max - min + 1) + min);
+      // console.log(randomNumber);
+
+      if (randomNumber === 0) {
+        win++;
+        document.getElementById("com_hand").textContent = "グー";
+        document.getElementById("result").textContent = "かち";
+        updateDoc(doc(db, "janken", "par"), {
+          win: increment(1)
+        });
+      } else if (randomNumber === 1) {
+        lose++;
+        document.getElementById("com_hand").textContent = "チョキ";
+        document.getElementById("result").textContent = "まけ";
+        updateDoc(doc(db, "janken", "par"), {
+          lose: increment(1)
+        });
+      } else if (randomNumber === 2) {
+        equal++;
+        document.getElementById("com_hand").textContent = "パー";
+        document.getElementById("result").textContent = "あいこ";
+        updateDoc(doc(db, "janken", "par"), {
+          equal: increment(1)
+        });
+      }
+      updateHistory();
+
+    });
+
+    // 各ドキュメントからデータを取得して合計を計算し、新たに win, lose, equal に代入する
+    async function updateTotalResults() {
+      const guDocRef = doc(db, "janken", "gu");
+      const choDocRef = doc(db, "janken", "cho");
+      const parDocRef = doc(db, "janken", "par");
+
+      const guDocSnap = await getDoc(guDocRef);
+      const choDocSnap = await getDoc(choDocRef);
+      const parDocSnap = await getDoc(parDocRef);
+
+      if (guDocSnap.exists() && choDocSnap.exists() && parDocSnap.exists()) {
+        const guData = guDocSnap.data();
+        const choData = choDocSnap.data();
+        const parData = parDocSnap.data();
+
+        const totalWin = guData.win + choData.win + parData.win;
+        const totalLose = guData.lose + choData.lose + parData.lose;
+        const totalEqual = guData.equal + choData.equal + parData.equal;
+
+        // それぞれの合計値を新たに代入
+        win = totalWin;
+        lose = totalLose;
+        equal = totalEqual;
+
+        // console.log("合計勝:", totalWin, "合計負:", totalLose, "合計引き分け:", totalEqual);
+        historyMessage = `合計勝${totalWin},合計負${totalLose},合計引き分け:${totalEqual}`;
+        console.log(historyMessage);
+      } else {
+        console.log("ドキュメントが存在しません");
+      }
+
+    }
+
+    // 呼び出し
+    updateTotalResults();
+
+    // 勝敗引き分け数と勝率を表示する関数
+    function updateHistory() {
+      //   console.log(equal, win, lose);
+      const totalGames = equal + win + lose;
+      const winPercentage = (win / totalGames) * 100;
+
+      const historyElement = document.getElementById("winlose");
+      historyElement.textContent = `勝: ${win}、負: ${lose}、引き分け: ${equal}、勝率: ${winPercentage.toFixed(2)}%`;
+    }
+
+    // AIアドバイス
+    function sendChat() {
+
+      // OpenAIのエンドポイントURLを定義。
+      const endPoint = "https://api.openai.com/v1/chat/completions";
+
+      const messages = [
+        {
+          role: "system",
+          content: "博多弁の人として振る舞ってください"
+        },
+        {
+          role: "assistant",
+          content: `今の勝率は${historyMessage}です`
+        },
+        {
+          role: "user", // ユーザーからのメッセージ 
+          content: "博多弁のおしとやかな女の子として、次に出すべきジャンケンを強引に話してね"
+        }
+      ];
+
+      // リクエストオプション
+      const requestOptions = {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${chatGptApiKey}`
+        },
+        body: JSON.stringify({
+          model: "gpt-3.5-turbo",
+          messages: messages,
+          max_tokens: 50 //レスポンスのトークンの最大数
+        })
+      };
+
+      // Requestオブジェクトを作成。
+      const myRequest = new Request(endPoint, requestOptions);
+
+      // fetch APIを使用してリクエストを送信
+      fetch(myRequest)
+        .then(res => res.json()) // レスポンスをJSONとしてパース
+        .then(json => {
+          // JSONレスポンスからメッセージを取得してコンソールに出力
+          const chatgptResponse = json.choices[0].message.content;
+          console.log(chatgptResponse);
+          document.getElementById("advice").textContent = chatgptResponse;
+        })
+        .catch(err => {
+          // エラー発生時の処理をここに書く
+        });
+
+    }
+    // ボタン要素を取得
+    const guButton = document.getElementById("gu_btn");
+    const choButton = document.getElementById("cho_btn");
+    const parButton = document.getElementById("par_btn");
+
+    // 各ボタンにクリックイベントリスナーを追加
+    guButton.addEventListener("click", sendChat);
+    choButton.addEventListener("click", sendChat);
+    parButton.addEventListener("click", sendChat);
+
+  </script>
+
+</body>
+
+</html>
